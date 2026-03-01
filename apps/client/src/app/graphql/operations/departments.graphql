@@ -1,0 +1,102 @@
+query GetDepartments {
+  departments {
+    id
+    name
+    budget
+    head {
+      id
+      firstName
+      lastName
+      avatar
+    }
+    parent {
+      id
+      name
+    }
+    employeeCount
+  }
+}
+
+query GetDepartment($id: ID!) {
+  department(id: $id) {
+    id
+    name
+    budget
+    head {
+      id
+      firstName
+      lastName
+    }
+    parent {
+      id
+      name
+    }
+    children {
+      id
+      name
+    }
+    employees {
+      id
+      firstName
+      lastName
+      avatar
+      role {
+        title
+      }
+    }
+    employeeCount
+  }
+}
+
+query GetOrgChart {
+  orgChart {
+    id
+    name
+    title
+    avatar
+    departmentName
+    children {
+      id
+      name
+      title
+      avatar
+      departmentName
+      children {
+        id
+        name
+        title
+        avatar
+        departmentName
+        children {
+          id
+          name
+          title
+          avatar
+          departmentName
+          children {
+            id
+            name
+            title
+            avatar
+            departmentName
+          }
+        }
+      }
+    }
+  }
+}
+
+mutation CreateDepartment($input: CreateDepartmentInput!) {
+  createDepartment(input: $input) {
+    id
+    name
+  }
+}
+
+mutation UpdateDepartment($id: ID!, $input: UpdateDepartmentInput!) {
+  updateDepartment(id: $id, input: $input) {
+    id
+    name
+    budget
+  }
+}

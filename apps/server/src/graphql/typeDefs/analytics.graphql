@@ -1,0 +1,44 @@
+type AnalyticsPayload {
+  totalEmployees: Int!
+  activeEmployees: Int!
+  newHires30d: Int!
+  turnoverRate: Float!
+  averageTenure: Float!
+  averageSalary: Float!
+  headcountTrend: [HeadcountDataPoint!]!
+  departmentDistribution: [DepartmentDistribution!]!
+  turnoverTrend: [TurnoverDataPoint!]!
+  tenureByDepartment: [TenureByDepartment!]!
+  salaryBands: [SalaryBand!]!
+}
+
+type HeadcountDataPoint {
+  month: String!
+  count: Int!
+}
+
+type DepartmentDistribution {
+  department: String!
+  count: Int!
+  percentage: Float!
+}
+
+type TurnoverDataPoint {
+  month: String!
+  rate: Float!
+  terminations: Int!
+}
+
+type TenureByDepartment {
+  department: String!
+  averageTenure: Float!
+}
+
+type SalaryBand {
+  range: String!
+  count: Int!
+}
+
+extend type Query {
+  analytics(startDate: DateTime, endDate: DateTime): AnalyticsPayload!
+}

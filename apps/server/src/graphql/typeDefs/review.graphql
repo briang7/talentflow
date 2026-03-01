@@ -1,0 +1,95 @@
+type ReviewCycle {
+  id: ID!
+  name: String!
+  type: ReviewCycleType!
+  startDate: DateTime!
+  endDate: DateTime!
+  status: ReviewCycleStatus!
+  reviews: [PerformanceReview!]!
+  completionRate: Float!
+  averageScore: Float
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type PerformanceReview {
+  id: ID!
+  employee: Employee!
+  reviewer: Employee!
+  cycle: ReviewCycle!
+  overallScore: Float
+  comments: String
+  status: ReviewStatus!
+  ratings: [Rating!]!
+  goals: [Goal!]!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type Rating {
+  id: ID!
+  category: String!
+  score: Int!
+  comments: String
+}
+
+type Goal {
+  id: ID!
+  title: String!
+  description: String
+  status: GoalStatus!
+  dueDate: DateTime
+}
+
+input CreateReviewCycleInput {
+  name: String!
+  type: ReviewCycleType!
+  startDate: DateTime!
+  endDate: DateTime!
+}
+
+input UpdateReviewCycleInput {
+  name: String
+  status: ReviewCycleStatus
+  endDate: DateTime
+}
+
+input CreateReviewInput {
+  employeeId: ID!
+  reviewerId: ID!
+  cycleId: ID!
+}
+
+input SubmitReviewInput {
+  overallScore: Float!
+  comments: String
+  ratings: [RatingInput!]!
+  goals: [GoalInput!]
+}
+
+input RatingInput {
+  category: String!
+  score: Int!
+  comments: String
+}
+
+input GoalInput {
+  title: String!
+  description: String
+  dueDate: DateTime
+}
+
+extend type Query {
+  reviewCycles: [ReviewCycle!]!
+  reviewCycle(id: ID!): ReviewCycle
+  review(id: ID!): PerformanceReview
+  myReviews: [PerformanceReview!]!
+}
+
+extend type Mutation {
+  createReviewCycle(input: CreateReviewCycleInput!): ReviewCycle!
+  updateReviewCycle(id: ID!, input: UpdateReviewCycleInput!): ReviewCycle!
+  createReview(input: CreateReviewInput!): PerformanceReview!
+  submitReview(id: ID!, input: SubmitReviewInput!): PerformanceReview!
+  finalizeReview(id: ID!): PerformanceReview!
+}

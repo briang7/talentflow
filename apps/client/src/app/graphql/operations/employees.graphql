@@ -1,0 +1,127 @@
+query GetEmployees($first: Int, $after: String, $filter: EmployeeFilter, $sort: EmployeeSortInput) {
+  employees(first: $first, after: $after, filter: $filter, sort: $sort) {
+    edges {
+      cursor
+      node {
+        id
+        firstName
+        lastName
+        email
+        phone
+        avatar
+        hireDate
+        salary
+        status
+        department {
+          id
+          name
+        }
+        role {
+          id
+          title
+          level
+        }
+        manager {
+          id
+          firstName
+          lastName
+        }
+        location {
+          id
+          name
+          city
+          country
+        }
+      }
+    }
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+      startCursor
+      endCursor
+      totalCount
+    }
+  }
+}
+
+query GetEmployee($id: ID!) {
+  employee(id: $id) {
+    id
+    firstName
+    lastName
+    email
+    phone
+    avatar
+    hireDate
+    salary
+    status
+    department {
+      id
+      name
+    }
+    role {
+      id
+      title
+      level
+      salaryMin
+      salaryMax
+    }
+    manager {
+      id
+      firstName
+      lastName
+      avatar
+    }
+    reports {
+      id
+      firstName
+      lastName
+      avatar
+      role {
+        title
+      }
+    }
+    location {
+      id
+      name
+      city
+      country
+    }
+    reviewsReceived {
+      id
+      overallScore
+      status
+      cycle {
+        name
+      }
+      createdAt
+    }
+  }
+}
+
+query GetEmployeeCount {
+  employeeCount
+}
+
+mutation CreateEmployee($input: CreateEmployeeInput!) {
+  createEmployee(input: $input) {
+    id
+    firstName
+    lastName
+    email
+  }
+}
+
+mutation UpdateEmployee($id: ID!, $input: UpdateEmployeeInput!) {
+  updateEmployee(id: $id, input: $input) {
+    id
+    firstName
+    lastName
+    email
+    status
+  }
+}
+
+mutation DeleteEmployee($id: ID!) {
+  deleteEmployee(id: $id)
+}

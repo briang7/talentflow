@@ -1,0 +1,37 @@
+type AuthUser {
+  id: ID!
+  email: String!
+  role: UserRole!
+  employee: Employee
+}
+
+type AuthPayload {
+  token: String!
+  user: AuthUser!
+}
+
+extend type Query {
+  me: AuthUser
+  roles: [Role!]!
+  offices: [Office!]!
+}
+
+type Role {
+  id: ID!
+  title: String!
+  level: Int!
+  salaryMin: Float!
+  salaryMax: Float!
+}
+
+type Office {
+  id: ID!
+  name: String!
+  address: String!
+  city: String!
+  country: String!
+}
+
+extend type Mutation {
+  login(firebaseToken: String!): AuthPayload!
+}

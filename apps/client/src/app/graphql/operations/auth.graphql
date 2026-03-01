@@ -1,0 +1,50 @@
+query GetMe {
+  me {
+    id
+    email
+    role
+    employee {
+      id
+      firstName
+      lastName
+      avatar
+    }
+  }
+}
+
+query GetRoles {
+  roles {
+    id
+    title
+    level
+    salaryMin
+    salaryMax
+  }
+}
+
+query GetOffices {
+  offices {
+    id
+    name
+    address
+    city
+    country
+  }
+}
+
+mutation Login($firebaseToken: String!) {
+  login(firebaseToken: $firebaseToken) {
+    token
+    user {
+      id
+      email
+      role
+      employee {
+        id
+        firstName
+        lastName
+        avatar
+      }
+    }
+  }
+}

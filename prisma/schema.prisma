@@ -1,0 +1,228 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────
+
+enum EmployeeStatus {
+  ACTIVE
+  ON_LEAVE
+  TERMINATED
+}
+
+enum UserRole {
+  ADMIN
+  HR_MANAGER
+  TEAM_LEAD
+  EMPLOYEE
+}
+
+enum ReviewCycleType {
+  QUARTERLY
+  ANNUAL
+}
+
+enum ReviewCycleStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+}
+
+enum ReviewStatus {
+  DRAFT
+  SUBMITTED
+  REVIEWED
+  FINALIZED
+}
+
+enum GoalStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// ─── Models ───────────────────────────────────────────────
+
+model Employee {
+  id           String         @id @default(uuid())
+  firstName    String
+  lastName     String
+  email        String         @unique
+  phone        String?
+  avatar       String?
+  hireDate     DateTime
+  salary       Float
+  status       EmployeeStatus @default(ACTIVE)
+
+  departmentId String
+  department   Department     @relation("DepartmentEmployees", fields: [departmentId], references: [id])
+
+  roleId       String
+  role         Role           @relation(fields: [roleId], references: [id])
+
+  managerId    String?
+  manager      Employee?      @relation("ManagerReports", fields: [managerId], references: [id])
+  reports      Employee[]     @relation("ManagerReports")
+
+  locationId   String
+  location     Office         @relation(fields: [locationId], references: [id])
+
+  user         User?
+  headOf       Department[]   @relation("DepartmentHead")
+
+  reviewsGiven    PerformanceReview[] @relation("Reviewer")
+  reviewsReceived PerformanceReview[] @relation("Reviewee")
+
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([departmentId])
+  @@index([managerId])
+  @@index([status])
+}
+
+model Department {
+  id                 String       @id @default(uuid())
+  name               String       @unique
+  budget             Float?
+
+  headId             String?
+  head               Employee?    @relation("DepartmentHead", fields: [headId], references: [id])
+
+  parentDepartmentId String?
+  parent             Department?  @relation("DepartmentHierarchy", fields: [parentDepartmentId], references: [id])
+  children           Department[] @relation("DepartmentHierarchy")
+
+  employees          Employee[]   @relation("DepartmentEmployees")
+
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+}
+
+model Role {
+  id        String     @id @default(uuid())
+  title     String     @unique
+  level     Int
+  salaryMin Float
+  salaryMax Float
+
+  employees Employee[]
+
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Office {
+  id        String     @id @default(uuid())
+  name      String     @unique
+  address   String
+  city      String
+  country   String
+
+  employees Employee[]
+
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model ReviewCycle {
+  id        String            @id @default(uuid())
+  name      String
+  type      ReviewCycleType
+  startDate DateTime
+  endDate   DateTime
+  status    ReviewCycleStatus @default(DRAFT)
+
+  reviews   PerformanceReview[]
+
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+}
+
+model PerformanceReview {
+  id           String       @id @default(uuid())
+  overallScore Float?
+  comments     String?
+  status       ReviewStatus @default(DRAFT)
+
+  employeeId   String
+  employee     Employee     @relation("Reviewee", fields: [employeeId], references: [id])
+
+  reviewerId   String
+  reviewer     Employee     @relation("Reviewer", fields: [reviewerId], references: [id])
+
+  cycleId      String
+  cycle        ReviewCycle  @relation(fields: [cycleId], references: [id])
+
+  ratings      Rating[]
+  goals        Goal[]
+
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([employeeId])
+  @@index([cycleId])
+}
+
+model Rating {
+  id       String @id @default(uuid())
+  category String
+  score    Int
+  comments String?
+
+  reviewId String
+  review   PerformanceReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+model Goal {
+  id          String     @id @default(uuid())
+  title       String
+  description String?
+  status      GoalStatus @default(NOT_STARTED)
+  dueDate     DateTime?
+
+  reviewId    String
+  review      PerformanceReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model User {
+  id          String   @id @default(uuid())
+  firebaseUid String   @unique
+  email       String   @unique
+  role        UserRole @default(EMPLOYEE)
+
+  employeeId  String?  @unique
+  employee    Employee? @relation(fields: [employeeId], references: [id])
+
+  auditLogs   AuditLog[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  action     String
+  entityType String
+  entityId   String
+  changes    Json?
+
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+
+  timestamp  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([userId])
+}

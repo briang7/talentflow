@@ -1,0 +1,53 @@
+scalar DateTime
+scalar JSON
+
+enum SortDirection {
+  ASC
+  DESC
+}
+
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+  totalCount: Int!
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  ON_LEAVE
+  TERMINATED
+}
+
+enum UserRole {
+  ADMIN
+  HR_MANAGER
+  TEAM_LEAD
+  EMPLOYEE
+}
+
+enum ReviewCycleType {
+  QUARTERLY
+  ANNUAL
+}
+
+enum ReviewCycleStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+}
+
+enum ReviewStatus {
+  DRAFT
+  SUBMITTED
+  REVIEWED
+  FINALIZED
+}
+
+enum GoalStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}

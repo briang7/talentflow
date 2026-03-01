@@ -1,0 +1,98 @@
+type Employee {
+  id: ID!
+  firstName: String!
+  lastName: String!
+  email: String!
+  phone: String
+  avatar: String
+  hireDate: DateTime!
+  salary: Float!
+  status: EmployeeStatus!
+  department: Department!
+  role: Role!
+  manager: Employee
+  reports: [Employee!]!
+  location: Office!
+  reviewsReceived: [PerformanceReview!]!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type EmployeeConnection {
+  edges: [EmployeeEdge!]!
+  pageInfo: PageInfo!
+}
+
+type EmployeeEdge {
+  cursor: String!
+  node: Employee!
+}
+
+input EmployeeFilter {
+  search: String
+  departmentId: ID
+  status: EmployeeStatus
+  locationId: ID
+  roleId: ID
+  hireDateFrom: DateTime
+  hireDateTo: DateTime
+}
+
+input EmployeeSortInput {
+  field: EmployeeSortField!
+  direction: SortDirection!
+}
+
+enum EmployeeSortField {
+  FIRST_NAME
+  LAST_NAME
+  HIRE_DATE
+  SALARY
+  DEPARTMENT
+  STATUS
+}
+
+input CreateEmployeeInput {
+  firstName: String!
+  lastName: String!
+  email: String!
+  phone: String
+  avatar: String
+  hireDate: DateTime!
+  salary: Float!
+  departmentId: ID!
+  roleId: ID!
+  managerId: ID
+  locationId: ID!
+}
+
+input UpdateEmployeeInput {
+  firstName: String
+  lastName: String
+  email: String
+  phone: String
+  avatar: String
+  salary: Float
+  status: EmployeeStatus
+  departmentId: ID
+  roleId: ID
+  managerId: ID
+  locationId: ID
+}
+
+extend type Query {
+  employees(
+    first: Int
+    after: String
+    filter: EmployeeFilter
+    sort: EmployeeSortInput
+  ): EmployeeConnection!
+  employee(id: ID!): Employee
+  employeeCount: Int!
+}
+
+extend type Mutation {
+  createEmployee(input: CreateEmployeeInput!): Employee!
+  updateEmployee(id: ID!, input: UpdateEmployeeInput!): Employee!
+  deleteEmployee(id: ID!): Boolean!
+}

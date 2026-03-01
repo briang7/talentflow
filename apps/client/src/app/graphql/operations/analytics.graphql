@@ -1,0 +1,32 @@
+query GetAnalytics($startDate: DateTime, $endDate: DateTime) {
+  analytics(startDate: $startDate, endDate: $endDate) {
+    totalEmployees
+    activeEmployees
+    newHires30d
+    turnoverRate
+    averageTenure
+    averageSalary
+    headcountTrend {
+      month
+      count
+    }
+    departmentDistribution {
+      department
+      count
+      percentage
+    }
+    turnoverTrend {
+      month
+      rate
+      terminations
+    }
+    tenureByDepartment {
+      department
+      averageTenure
+    }
+    salaryBands {
+      range
+      count
+    }
+  }
+}

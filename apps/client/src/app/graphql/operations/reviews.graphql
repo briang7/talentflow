@@ -1,0 +1,110 @@
+query GetReviewCycles {
+  reviewCycles {
+    id
+    name
+    type
+    startDate
+    endDate
+    status
+    completionRate
+    averageScore
+  }
+}
+
+query GetReviewCycle($id: ID!) {
+  reviewCycle(id: $id) {
+    id
+    name
+    type
+    startDate
+    endDate
+    status
+    completionRate
+    averageScore
+    reviews {
+      id
+      employee {
+        id
+        firstName
+        lastName
+        avatar
+        department {
+          name
+        }
+      }
+      reviewer {
+        id
+        firstName
+        lastName
+      }
+      overallScore
+      status
+    }
+  }
+}
+
+query GetReview($id: ID!) {
+  review(id: $id) {
+    id
+    overallScore
+    comments
+    status
+    employee {
+      id
+      firstName
+      lastName
+      avatar
+      department {
+        name
+      }
+      role {
+        title
+      }
+    }
+    reviewer {
+      id
+      firstName
+      lastName
+    }
+    cycle {
+      id
+      name
+    }
+    ratings {
+      id
+      category
+      score
+      comments
+    }
+    goals {
+      id
+      title
+      description
+      status
+      dueDate
+    }
+  }
+}
+
+mutation CreateReviewCycle($input: CreateReviewCycleInput!) {
+  createReviewCycle(input: $input) {
+    id
+    name
+    status
+  }
+}
+
+mutation SubmitReview($id: ID!, $input: SubmitReviewInput!) {
+  submitReview(id: $id, input: $input) {
+    id
+    status
+    overallScore
+  }
+}
+
+mutation FinalizeReview($id: ID!) {
+  finalizeReview(id: $id) {
+    id
+    status
+  }
+}
