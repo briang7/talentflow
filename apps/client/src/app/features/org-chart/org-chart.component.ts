@@ -1,4 +1,7 @@
-import { Component, OnInit, signal } from '@angular/core';
+import {
+  Component, OnInit, AfterViewInit, OnDestroy,
+  ElementRef, ViewChild, signal, inject, NgZone, ChangeDetectorRef,
+} from '@angular/core';
 import { Router } from '@angular/router';
 import { Apollo } from 'apollo-angular';
 import { gql } from '@apollo/client/core';
@@ -8,7 +11,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { FormsModule } from '@angular/forms';
+import { OrgChart } from 'd3-org-chart';
+import * as d3 from 'd3';
 
 const GET_ORG_CHART = gql`
   query GetOrgChart {
@@ -28,12 +34,22 @@ const GET_ORG_CHART = gql`
   }
 `;
 
+interface OrgNode {
+  id: string;
+  name: string;
+  title: string;
+  avatar: string | null;
+  departmentName: string;
+  parentId: string | null;
+}
+
 @Component({
   selector: 'tf-org-chart',
   standalone: true,
   imports: [
     MatCardModule, MatButtonModule, MatIconModule,
-    MatProgressSpinnerModule, MatFormFieldModule, MatInputModule, FormsModule,
+    MatProgressSpinnerModule, MatFormFieldModule, MatInputModule,
+    MatTooltipModule, FormsModule,
   ],
   template: `
     <div class="page-header">
@@ -41,134 +57,87 @@ const GET_ORG_CHART = gql`
         <h1>Organization Chart</h1>
         <p>Company hierarchy and reporting structure</p>
       </div>
-      <mat-form-field appearance="outline" class="search-field">
-        <mat-label>Search people</mat-label>
-        <input matInput [(ngModel)]="searchTerm" placeholder="Search by name...">
-        <mat-icon matSuffix>search</mat-icon>
-      </mat-form-field>
+      <div class="toolbar">
+        <mat-form-field appearance="outline" class="search-field">
+          <mat-label>Search people</mat-label>
+          <input matInput [(ngModel)]="searchTerm"
+                 (ngModelChange)="onSearch($event)"
+                 placeholder="Search by name or title...">
+          <mat-icon matSuffix>search</mat-icon>
+        </mat-form-field>
+        <div class="zoom-controls">
+          <button mat-icon-button matTooltip="Zoom In" (click)="zoomIn()">
+            <mat-icon>zoom_in</mat-icon>
+          </button>
+          <button mat-icon-button matTooltip="Zoom Out" (click)="zoomOut()">
+            <mat-icon>zoom_out</mat-icon>
+          </button>
+          <button mat-icon-button matTooltip="Fit to Screen" (click)="fitScreen()">
+            <mat-icon>fit_screen</mat-icon>
+          </button>
+          <button mat-icon-button matTooltip="Expand All" (click)="expandAll()">
+            <mat-icon>unfold_more</mat-icon>
+          </button>
+          <button mat-icon-button matTooltip="Collapse All" (click)="collapseAll()">
+            <mat-icon>unfold_less</mat-icon>
+          </button>
+        </div>
+      </div>
     </div>
 
     @if (loading()) {
       <div class="loading"><mat-spinner></mat-spinner></div>
     } @else {
-      <div class="org-tree-container">
-        @for (node of orgData(); track node.id) {
-          <div class="org-tree">
-            <ng-container *ngTemplateOutlet="nodeTemplate; context: { $implicit: node, level: 0 }"></ng-container>
-          </div>
-        }
+      <div class="chart-wrapper">
+        <div #chartContainer class="chart-container"></div>
       </div>
-
-      <ng-template #nodeTemplate let-node let-level="level">
-        <div class="tree-node" [class.highlighted]="isHighlighted(node.name)">
-          <div class="node-card" (click)="onNodeClick(node.id)">
-            <div class="node-avatar" [style.background]="getDeptColor(node.departmentName)">
-              {{ getInitials(node.name) }}
-            </div>
-            <div class="node-info">
-              <div class="node-name">{{ node.name }}</div>
-              <div class="node-title">{{ node.title }}</div>
-              <div class="node-dept">{{ node.departmentName }}</div>
-            </div>
-          </div>
-          @if (node.children?.length) {
-            <div class="tree-children">
-              @for (child of node.children; track child.id) {
-                <div class="tree-branch">
-                  <ng-container *ngTemplateOutlet="nodeTemplate; context: { $implicit: child, level: level + 1 }"></ng-container>
-                </div>
-              }
-            </div>
-          }
-        </div>
-      </ng-template>
     }
   `,
   styles: [`
     .page-header {
       display: flex; justify-content: space-between; align-items: flex-start;
-      margin-bottom: 24px; flex-wrap: wrap; gap: 16px;
+      margin-bottom: 16px; flex-wrap: wrap; gap: 16px;
     }
     .page-header h1 { font-size: 28px; font-weight: 700; margin: 0; }
     .page-header p { color: #666; margin: 4px 0 0; }
-    .search-field { width: 280px; }
+    .toolbar {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    }
+    .search-field { width: 260px; }
+    .zoom-controls {
+      display: flex;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      border: 1px solid #e0e0e0;
+    }
+    .zoom-controls button { color: #555; }
     .loading { display: flex; justify-content: center; padding: 80px; }
-    .org-tree-container {
-      overflow-x: auto;
-      padding: 20px;
-    }
-    .org-tree {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    .tree-node {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    .tree-node.highlighted > .node-card {
-      box-shadow: 0 0 0 3px #667eea;
-    }
-    .node-card {
-      background: white;
+    .chart-wrapper {
+      background: #fff;
       border-radius: 12px;
-      padding: 16px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-      cursor: pointer;
-      transition: transform 0.2s, box-shadow 0.2s;
-      min-width: 220px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      border: 1px solid rgba(0,0,0,0.05);
+      overflow: hidden;
     }
-    .node-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-    }
-    .node-avatar {
-      width: 44px; height: 44px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      color: white; font-weight: 600; font-size: 16px; flex-shrink: 0;
-    }
-    .node-info { overflow: hidden; }
-    .node-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .node-title { font-size: 12px; color: #666; }
-    .node-dept { font-size: 11px; color: #999; }
-    .tree-children {
-      display: flex;
-      gap: 16px;
-      padding-top: 24px;
-      position: relative;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-    .tree-children::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 50%;
-      width: 2px;
-      height: 24px;
-      background: #ddd;
-    }
-    .tree-branch {
-      position: relative;
-      padding-top: 24px;
-    }
-    .tree-branch::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 50%;
-      width: 2px;
-      height: 24px;
-      background: #ddd;
+    .chart-container {
+      width: 100%;
+      height: calc(100vh - 240px);
+      min-height: 500px;
     }
   `],
 })
-export class OrgChartComponent implements OnInit {
-  orgData = signal<any[]>([]);
+export class OrgChartComponent implements OnInit, AfterViewInit, OnDestroy {
+  @ViewChild('chartContainer', { static: false }) chartContainer!: ElementRef;
+
+  private apollo = inject(Apollo);
+  private router = inject(Router);
+  private zone = inject(NgZone);
+  private cdr = inject(ChangeDetectorRef);
+  private chart: OrgChart<OrgNode> | null = null;
+  private flatData: OrgNode[] = [];
+  private resizeObserver: ResizeObserver | null = null;
+
   loading = signal(true);
   searchTerm = '';
 
@@ -176,39 +145,196 @@ export class OrgChartComponent implements OnInit {
     'Engineering': '#667eea',
     'Platform': '#764ba2',
     'Data & Analytics': '#4facfe',
-    'Product': '#43e97b',
-    'Design': '#f093fb',
+    'Product': '#2ecc71',
+    'Design': '#e84393',
     'Human Resources': '#fa709a',
-    'Marketing': '#fee140',
-    'Sales': '#00f2fe',
+    'Marketing': '#fdcb6e',
+    'Sales': '#00cec9',
   };
-
-  constructor(private apollo: Apollo, private router: Router) {}
 
   ngOnInit(): void {
     this.apollo.watchQuery<any>({ query: GET_ORG_CHART }).valueChanges.subscribe({
       next: ({ data }) => {
-        this.orgData.set(data?.orgChart || []);
-        this.loading.set(false);
+        this.zone.run(() => {
+          const trees = data?.orgChart || [];
+          this.flatData = this.flattenTree(trees, null);
+          this.loading.set(false);
+          this.cdr.markForCheck();
+          // Wait for view to render the container
+          setTimeout(() => this.renderChart(), 0);
+        });
       },
-      error: () => this.loading.set(false),
+      error: () => {
+        this.zone.run(() => {
+          this.loading.set(false);
+          this.cdr.markForCheck();
+        });
+      },
     });
   }
 
-  getInitials(name: string): string {
-    return name.split(' ').map(n => n.charAt(0)).join('').substring(0, 2);
+  ngAfterViewInit(): void {
+    if (this.flatData.length && this.chartContainer) {
+      this.renderChart();
+    }
   }
 
-  getDeptColor(dept: string): string {
-    return this.deptColors[dept] || '#667eea';
+  ngOnDestroy(): void {
+    this.resizeObserver?.disconnect();
   }
 
-  isHighlighted(name: string): boolean {
-    if (!this.searchTerm) return false;
-    return name.toLowerCase().includes(this.searchTerm.toLowerCase());
+  private flattenTree(nodes: any[], parentId: string | null): OrgNode[] {
+    const result: OrgNode[] = [];
+    for (const node of nodes) {
+      result.push({
+        id: node.id,
+        name: node.name,
+        title: node.title,
+        avatar: node.avatar,
+        departmentName: node.departmentName,
+        parentId,
+      });
+      if (node.children?.length) {
+        result.push(...this.flattenTree(node.children, node.id));
+      }
+    }
+    return result;
   }
 
-  onNodeClick(id: string): void {
-    this.router.navigate(['/employees', id]);
+  private getInitials(name: string): string {
+    return name.split(' ').map((n: string) => n.charAt(0)).join('').substring(0, 2);
+  }
+
+  private renderChart(): void {
+    if (!this.chartContainer?.nativeElement || !this.flatData.length) return;
+
+    const container = this.chartContainer.nativeElement;
+    // Clear previous
+    container.innerHTML = '';
+
+    this.chart = new OrgChart<OrgNode>()
+      .container(container)
+      .data(this.flatData as any)
+      .nodeId((d: any) => d.id)
+      .parentNodeId((d: any) => d.parentId)
+      .nodeWidth(() => 260)
+      .nodeHeight(() => 120)
+      .childrenMargin(() => 60)
+      .compactMarginBetween(() => 30)
+      .siblingsMargin(() => 30)
+      .neighbourMargin(() => 40)
+      .initialZoom(0.85)
+      .nodeContent((d: any) => {
+        const data = d.data as OrgNode;
+        const color = this.deptColors[data.departmentName] || '#667eea';
+        const initials = this.getInitials(data.name);
+        const directReports = d.children?.length || d._children?.length || 0;
+        const reportsLabel = directReports > 0
+          ? `<div style="font-size:11px;color:#888;margin-top:2px;">${directReports} direct report${directReports > 1 ? 's' : ''}</div>`
+          : '';
+
+        return `
+          <div style="
+            background: #fff;
+            border-radius: 14px;
+            border: 2px solid ${color}22;
+            border-left: 4px solid ${color};
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            height: ${d.height}px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            transition: box-shadow 0.2s, transform 0.2s;
+            cursor: pointer;
+            font-family: 'Roboto', sans-serif;
+          "
+          onmouseover="this.style.boxShadow='0 6px 24px rgba(0,0,0,0.12)'; this.style.transform='translateY(-2px)'"
+          onmouseout="this.style.boxShadow='0 2px 12px rgba(0,0,0,0.06)'; this.style.transform='translateY(0)'"
+          >
+            <div style="
+              width: 52px; height: 52px; border-radius: 50%;
+              background: linear-gradient(135deg, ${color}, ${color}aa);
+              display: flex; align-items: center; justify-content: center;
+              color: #fff; font-weight: 600; font-size: 18px;
+              flex-shrink: 0;
+              box-shadow: 0 2px 8px ${color}44;
+            ">${initials}</div>
+            <div style="overflow: hidden; flex: 1;">
+              <div style="font-weight: 600; font-size: 14px; color: #1a1a2e;
+                          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                ${data.name}
+              </div>
+              <div style="font-size: 12px; color: #555; margin-top: 2px;
+                          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                ${data.title}
+              </div>
+              <div style="
+                display: inline-block;
+                font-size: 11px; color: ${color};
+                background: ${color}11;
+                padding: 2px 8px;
+                border-radius: 10px;
+                margin-top: 4px;
+              ">${data.departmentName}</div>
+              ${reportsLabel}
+            </div>
+          </div>
+        `;
+      })
+      .linkUpdate(function (this: any, d: any) {
+        d3.select(this)
+          .attr('stroke', '#c8c8d8')
+          .attr('stroke-width', 2)
+          .attr('stroke-dasharray', '')
+          .style('opacity', 0.7);
+      })
+      .onNodeClick((d: any) => {
+        this.zone.run(() => {
+          this.router.navigate(['/employees', d]);
+        });
+      })
+      .render();
+
+    // Handle resize
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = new ResizeObserver(() => {
+      this.chart?.fit();
+    });
+    this.resizeObserver.observe(container);
+  }
+
+  onSearch(term: string): void {
+    if (!this.chart) return;
+    if (!term.trim()) {
+      this.chart.clearHighlighting();
+      return;
+    }
+    const lowerTerm = term.toLowerCase();
+    this.chart.setHighlighted(
+      this.flatData
+        .filter(d => d.name.toLowerCase().includes(lowerTerm) || d.title.toLowerCase().includes(lowerTerm))
+        .map(d => d.id)
+    ).render();
+  }
+
+  zoomIn(): void {
+    this.chart?.zoomIn();
+  }
+
+  zoomOut(): void {
+    this.chart?.zoomOut();
+  }
+
+  fitScreen(): void {
+    this.chart?.fit();
+  }
+
+  expandAll(): void {
+    this.chart?.expandAll().render();
+  }
+
+  collapseAll(): void {
+    this.chart?.collapseAll().render();
   }
 }
