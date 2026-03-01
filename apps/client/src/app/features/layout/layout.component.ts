@@ -137,21 +137,23 @@ import { AuthService } from '../../core/services/auth.service';
       font-weight: 700;
       white-space: nowrap;
     }
+    mat-nav-list {
+      --mdc-list-list-item-label-text-color: #d0d0e0;
+      --mdc-list-list-item-hover-label-text-color: #fff;
+      --mdc-list-list-item-focus-label-text-color: #fff;
+      --mdc-list-list-item-leading-icon-color: #c0c0d4;
+      --mdc-list-list-item-hover-leading-icon-color: #fff;
+      --mdc-list-list-item-hover-state-layer-color: rgba(255, 255, 255, 0.1);
+      --mdc-list-list-item-hover-state-layer-opacity: 1;
+    }
     mat-nav-list a {
-      color: #a0a0b8 !important;
       border-radius: 8px;
       margin: 2px 8px;
     }
-    mat-nav-list a:hover {
-      background: rgba(255, 255, 255, 0.08) !important;
-      color: #fff !important;
-    }
     mat-nav-list a.active-link {
-      background: rgba(102, 126, 234, 0.2) !important;
-      color: #667eea !important;
-    }
-    mat-nav-list a.active-link mat-icon {
-      color: #667eea !important;
+      background: rgba(102, 126, 234, 0.25) !important;
+      --mdc-list-list-item-label-text-color: #8fa4f0;
+      --mdc-list-list-item-leading-icon-color: #8fa4f0;
     }
     .sidenav-footer {
       margin-top: auto;

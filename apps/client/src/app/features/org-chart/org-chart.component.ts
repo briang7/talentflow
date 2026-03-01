@@ -137,6 +137,7 @@ export class OrgChartComponent implements OnInit, AfterViewInit, OnDestroy {
   private chart: OrgChart<OrgNode> | null = null;
   private flatData: OrgNode[] = [];
   private resizeObserver: ResizeObserver | null = null;
+  private expandedNodes = new Set<string>();
 
   loading = signal(true);
   searchTerm = '';
@@ -198,6 +199,27 @@ export class OrgChartComponent implements OnInit, AfterViewInit, OnDestroy {
         result.push(...this.flattenTree(node.children, node.id));
       }
     }
+
+    // d3-org-chart requires a single root. If there are multiple top-level
+    // nodes, wrap them under a synthetic company root.
+    if (parentId === null) {
+      const roots = result.filter(n => n.parentId === null);
+      if (roots.length > 1) {
+        const companyRoot: OrgNode = {
+          id: '__root__',
+          name: 'TalentFlow',
+          title: 'Organization',
+          avatar: null,
+          departmentName: 'Company',
+          parentId: null,
+        };
+        for (const r of roots) {
+          r.parentId = '__root__';
+        }
+        result.unshift(companyRoot);
+      }
+    }
+
     return result;
   }
 
@@ -229,8 +251,20 @@ export class OrgChartComponent implements OnInit, AfterViewInit, OnDestroy {
         const color = this.deptColors[data.departmentName] || '#667eea';
         const initials = this.getInitials(data.name);
         const directReports = d.children?.length || d._children?.length || 0;
-        const reportsLabel = directReports > 0
-          ? `<div style="font-size:11px;color:#888;margin-top:2px;">${directReports} direct report${directReports > 1 ? 's' : ''}</div>`
+        const isExpanded = d.children && d.children.length > 0;
+        const hasChildren = directReports > 0;
+        const expandIcon = hasChildren
+          ? `<span style="font-size:11px;color:#888;margin-top:2px;display:flex;align-items:center;gap:4px;">
+              <span style="font-size:14px;">${isExpanded ? '▼' : '▶'}</span>
+              ${directReports} report${directReports > 1 ? 's' : ''}
+             </span>`
+          : '';
+        const viewLink = data.id !== '__root__'
+          ? `<a data-employee-id="${data.id}" class="view-profile-link" style="
+              font-size:11px; color:${color}; cursor:pointer; text-decoration:none;
+              margin-top:2px; display:inline-block;
+            " onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'"
+            >View Profile →</a>`
           : '';
 
         return `
@@ -277,7 +311,10 @@ export class OrgChartComponent implements OnInit, AfterViewInit, OnDestroy {
                 border-radius: 10px;
                 margin-top: 4px;
               ">${data.departmentName}</div>
-              ${reportsLabel}
+              <div style="display:flex;align-items:center;gap:8px;margin-top:2px;">
+                ${expandIcon}
+                ${viewLink}
+              </div>
             </div>
           </div>
         `;
@@ -289,12 +326,19 @@ export class OrgChartComponent implements OnInit, AfterViewInit, OnDestroy {
           .attr('stroke-dasharray', '')
           .style('opacity', 0.7);
       })
-      .onNodeClick((d: any) => {
-        this.zone.run(() => {
-          this.router.navigate(['/employees', d]);
-        });
-      })
       .render();
+
+    // Listen for "View Profile" link clicks
+    container.addEventListener('click', (e: MouseEvent) => {
+      const link = (e.target as HTMLElement).closest('[data-employee-id]') as HTMLElement;
+      if (link) {
+        e.stopPropagation();
+        const employeeId = link.getAttribute('data-employee-id');
+        if (employeeId) {
+          this.zone.run(() => this.router.navigate(['/employees', employeeId]));
+        }
+      }
+    });
 
     // Handle resize
     this.resizeObserver?.disconnect();

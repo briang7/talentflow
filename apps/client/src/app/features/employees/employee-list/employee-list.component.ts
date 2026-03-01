@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Apollo } from 'apollo-angular';
@@ -14,8 +14,11 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { DatePipe } from '@angular/common';
 import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
+import { EmployeeFormComponent } from '../employee-form/employee-form.component';
 
 const GET_EMPLOYEES = gql`
   query GetEmployees($first: Int, $after: String, $filter: EmployeeFilter, $sort: EmployeeSortInput) {
@@ -44,7 +47,8 @@ const GET_DEPARTMENTS = gql`
   imports: [
     FormsModule, MatTableModule, MatPaginatorModule, MatFormFieldModule,
     MatInputModule, MatSelectModule, MatButtonModule, MatIconModule,
-    MatChipsModule, MatCardModule, MatProgressSpinnerModule, MatMenuModule, DatePipe,
+    MatChipsModule, MatCardModule, MatProgressSpinnerModule, MatMenuModule,
+    MatDialogModule, MatSnackBarModule, DatePipe,
   ],
   template: `
     <div class="page-header">
@@ -52,7 +56,7 @@ const GET_DEPARTMENTS = gql`
         <h1>Employees</h1>
         <p>{{ totalCount() }} employees in directory</p>
       </div>
-      <button mat-raised-button color="primary">
+      <button mat-raised-button color="primary" (click)="openAddEmployee()">
         <mat-icon>person_add</mat-icon> Add Employee
       </button>
     </div>
@@ -205,6 +209,9 @@ const GET_DEPARTMENTS = gql`
   `],
 })
 export class EmployeeListComponent implements OnInit {
+  private dialog = inject(MatDialog);
+  private snackBar = inject(MatSnackBar);
+
   employees = signal<any[]>([]);
   totalCount = signal(0);
   loading = signal(true);
@@ -272,5 +279,25 @@ export class EmployeeListComponent implements OnInit {
 
   viewEmployee(id: string): void {
     this.router.navigate(['/employees', id]);
+  }
+
+  openAddEmployee(): void {
+    const dialogRef = this.dialog.open(EmployeeFormComponent, {
+      width: '640px',
+      disableClose: true,
+    });
+
+    dialogRef.afterClosed().subscribe((result: any) => {
+      if (result) {
+        this.snackBar.open(
+          `${result.firstName} ${result.lastName} added successfully`,
+          'View',
+          { duration: 5000, panelClass: 'snack-success' }
+        ).onAction().subscribe(() => {
+          this.router.navigate(['/employees', result.id]);
+        });
+        this.loadEmployees();
+      }
+    });
   }
 }
