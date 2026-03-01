@@ -13,14 +13,18 @@ declare module 'd3-org-chart' {
     initialZoom(zoom: number): this;
     nodeContent(fn: (d: any, i: number, arr: any[], state: any) => string): this;
     linkUpdate(fn: (d: any, i: number, arr: any[]) => void): this;
-    onNodeClick(fn: (d: string) => void): this;
+    onNodeClick(fn: (d: any) => void): this;
     render(): this;
+    update(d: any): this;
     fit(): this;
     zoomIn(): this;
     zoomOut(): this;
     expandAll(): this;
     collapseAll(): this;
+    setExpanded(id: string, expanded?: boolean): this;
+    setCentered(id: string): this;
     setHighlighted(ids: string[]): this;
     clearHighlighting(): this;
+    getChartState(): any;
   }
 }

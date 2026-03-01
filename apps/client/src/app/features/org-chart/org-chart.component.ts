@@ -4,6 +4,7 @@ import {
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { Apollo } from 'apollo-angular';
+import { OrgChartStateService } from '../../core/services/org-chart-state.service';
 import { gql } from '@apollo/client/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -134,10 +135,10 @@ export class OrgChartComponent implements OnInit, AfterViewInit, OnDestroy {
   private router = inject(Router);
   private zone = inject(NgZone);
   private cdr = inject(ChangeDetectorRef);
+  private chartState = inject(OrgChartStateService);
   private chart: OrgChart<OrgNode> | null = null;
   private flatData: OrgNode[] = [];
   private resizeObserver: ResizeObserver | null = null;
-  private expandedNodes = new Set<string>();
 
   loading = signal(true);
   searchTerm = '';
@@ -181,7 +182,44 @@ export class OrgChartComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.saveExpandedState();
     this.resizeObserver?.disconnect();
+  }
+
+  /**
+   * Walk the d3 hierarchy and collect IDs of all VISIBLE nodes.
+   * d3-org-chart's _expanded flag means "make me visible (expand my ancestors)",
+   * so to restore state we must mark every visible node, not just expanded parents.
+   */
+  private saveExpandedState(): void {
+    if (!this.chart) return;
+    const state = (this.chart as any).getChartState?.();
+    const root = state?.root;
+    if (!root) return;
+
+    const visible = new Set<string>();
+    const walk = (node: any) => {
+      visible.add(node.data.id);
+      // Only recurse into .children (currently visible), not ._children (collapsed)
+      if (node.children) {
+        node.children.forEach(walk);
+      }
+    };
+    walk(root);
+    this.chartState.save(visible);
+  }
+
+  /** Mark flat data items with _expanded before render so the chart restores state. */
+  private applyExpandedState(): void {
+    const saved = this.chartState.restore();
+    if (!saved) return;
+
+    // d3-org-chart reads `_expanded` from each data item during render
+    for (const item of this.flatData as any[]) {
+      if (saved.has(item.id)) {
+        item._expanded = true;
+      }
+    }
   }
 
   private flattenTree(nodes: any[], parentId: string | null): OrgNode[] {
@@ -234,6 +272,9 @@ export class OrgChartComponent implements OnInit, AfterViewInit, OnDestroy {
     // Clear previous
     container.innerHTML = '';
 
+    // Set _expanded flags on data before render so the chart restores state
+    this.applyExpandedState();
+
     this.chart = new OrgChart<OrgNode>()
       .container(container)
       .data(this.flatData as any)
@@ -251,21 +292,15 @@ export class OrgChartComponent implements OnInit, AfterViewInit, OnDestroy {
         const color = this.deptColors[data.departmentName] || '#667eea';
         const initials = this.getInitials(data.name);
         const directReports = d.children?.length || d._children?.length || 0;
-        const isExpanded = d.children && d.children.length > 0;
         const hasChildren = directReports > 0;
-        const expandIcon = hasChildren
-          ? `<span style="font-size:11px;color:#888;margin-top:2px;display:flex;align-items:center;gap:4px;">
-              <span style="font-size:14px;">${isExpanded ? '▼' : '▶'}</span>
-              ${directReports} report${directReports > 1 ? 's' : ''}
+        const isExpanded = d.children && d.children.length > 0;
+        const reportsHint = hasChildren
+          ? `<span style="font-size:11px;color:#888;margin-top:3px;">
+              ${directReports} report${directReports > 1 ? 's' : ''} · click to ${isExpanded ? 'view profile' : 'expand'}
              </span>`
-          : '';
-        const viewLink = data.id !== '__root__'
-          ? `<a data-employee-id="${data.id}" class="view-profile-link" style="
-              font-size:11px; color:${color}; cursor:pointer; text-decoration:none;
-              margin-top:2px; display:inline-block;
-            " onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'"
-            >View Profile →</a>`
-          : '';
+          : (data.id !== '__root__'
+            ? `<span style="font-size:11px;color:#888;margin-top:3px;">Click to view profile</span>`
+            : '');
 
         return `
           <div style="
@@ -311,10 +346,7 @@ export class OrgChartComponent implements OnInit, AfterViewInit, OnDestroy {
                 border-radius: 10px;
                 margin-top: 4px;
               ">${data.departmentName}</div>
-              <div style="display:flex;align-items:center;gap:8px;margin-top:2px;">
-                ${expandIcon}
-                ${viewLink}
-              </div>
+              ${reportsHint}
             </div>
           </div>
         `;
@@ -326,19 +358,27 @@ export class OrgChartComponent implements OnInit, AfterViewInit, OnDestroy {
           .attr('stroke-dasharray', '')
           .style('opacity', 0.7);
       })
-      .render();
+      .onNodeClick((d: any) => {
+        const nodeId = d.data?.id || d.id;
+        if (nodeId === '__root__') return;
 
-    // Listen for "View Profile" link clicks
-    container.addEventListener('click', (e: MouseEvent) => {
-      const link = (e.target as HTMLElement).closest('[data-employee-id]') as HTMLElement;
-      if (link) {
-        e.stopPropagation();
-        const employeeId = link.getAttribute('data-employee-id');
-        if (employeeId) {
-          this.zone.run(() => this.router.navigate(['/employees', employeeId]));
+        // Has collapsed children → expand (same logic as the built-in button)
+        if (d._children) {
+          d.children = d._children;
+          d._children = null;
+          if (d.children) {
+            d.children.forEach((c: any) => c.data._expanded = true);
+          }
+          (this.chart as any).update(d);
+          return;
         }
-      }
-    });
+
+        // Has expanded children → navigate (they already see the tree)
+        // Or leaf node → navigate
+        this.saveExpandedState();
+        this.zone.run(() => this.router.navigate(['/employees', nodeId]));
+      })
+      .render();
 
     // Handle resize
     this.resizeObserver?.disconnect();

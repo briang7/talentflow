@@ -1,6 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
-import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
@@ -16,7 +15,6 @@ import { AuthService } from '../../core/services/auth.service';
     RouterOutlet,
     RouterLink,
     RouterLinkActive,
-    MatSidenavModule,
     MatToolbarModule,
     MatListModule,
     MatIconModule,
@@ -25,13 +23,8 @@ import { AuthService } from '../../core/services/auth.service';
     MatDividerModule,
   ],
   template: `
-    <mat-sidenav-container class="app-container">
-      <mat-sidenav
-        [mode]="'side'"
-        [opened]="true"
-        class="app-sidenav"
-        [class.collapsed]="collapsed()">
-
+    <div class="app-shell">
+      <aside class="sidebar" [class.collapsed]="collapsed()">
         <div class="sidenav-header">
           <mat-icon class="brand-icon">analytics</mat-icon>
           @if (!collapsed()) {
@@ -70,9 +63,9 @@ import { AuthService } from '../../core/services/auth.service';
             <mat-icon>{{ collapsed() ? 'chevron_right' : 'chevron_left' }}</mat-icon>
           </button>
         </div>
-      </mat-sidenav>
+      </aside>
 
-      <mat-sidenav-content class="app-content" [class.content-collapsed]="collapsed()">
+      <main class="main-area">
         <mat-toolbar class="app-toolbar">
           <button mat-icon-button (click)="toggleCollapsed()">
             <mat-icon>menu</mat-icon>
@@ -100,25 +93,43 @@ import { AuthService } from '../../core/services/auth.service';
         <div class="page-content">
           <router-outlet />
         </div>
-      </mat-sidenav-content>
-    </mat-sidenav-container>
+      </main>
+    </div>
   `,
   styles: [`
-    .app-container {
+    .app-shell {
+      display: flex;
       height: 100vh;
+      overflow: hidden;
     }
-    .app-sidenav {
+
+    /* Sidebar */
+    .sidebar {
       width: 260px;
+      min-width: 260px;
       background: #1a1a2e;
       color: #fff;
-      transition: width 0.3s ease;
       display: flex;
       flex-direction: column;
-      border-right: none;
+      transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                  min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
+      z-index: 20;
     }
-    .app-sidenav.collapsed {
+    .sidebar.collapsed {
       width: 68px;
+      min-width: 68px;
     }
+
+    /* Main content fills remaining space */
+    .main-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
     .sidenav-header {
       display: flex;
       align-items: center;
@@ -137,6 +148,8 @@ import { AuthService } from '../../core/services/auth.service';
       font-weight: 700;
       white-space: nowrap;
     }
+
+    /* Nav list tokens */
     mat-nav-list {
       --mdc-list-list-item-label-text-color: #d0d0e0;
       --mdc-list-list-item-hover-label-text-color: #fff;
@@ -155,6 +168,8 @@ import { AuthService } from '../../core/services/auth.service';
       --mdc-list-list-item-label-text-color: #8fa4f0;
       --mdc-list-list-item-leading-icon-color: #8fa4f0;
     }
+
+    /* Footer */
     .sidenav-footer {
       margin-top: auto;
       padding: 12px;
@@ -201,21 +216,25 @@ import { AuthService } from '../../core/services/auth.service';
     mat-divider {
       border-color: rgba(255, 255, 255, 0.1) !important;
     }
+
+    /* Toolbar */
     .app-toolbar {
       background: #fff;
       color: #333;
       border-bottom: 1px solid #e0e0e0;
-      position: sticky;
-      top: 0;
+      flex-shrink: 0;
       z-index: 10;
     }
     .toolbar-spacer {
       flex: 1;
     }
+
+    /* Page content */
     .page-content {
       padding: 24px;
       background: #f5f5f7;
-      min-height: calc(100vh - 64px);
+      flex: 1;
+      overflow-y: auto;
     }
   `],
 })

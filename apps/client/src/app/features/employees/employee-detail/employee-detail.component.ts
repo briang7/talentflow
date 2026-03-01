@@ -1,5 +1,6 @@
 import { Component, OnInit, signal } from '@angular/core';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Location } from '@angular/common';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Apollo } from 'apollo-angular';
 import { gql } from '@apollo/client/core';
 import { MatCardModule } from '@angular/material/card';
@@ -34,7 +35,7 @@ const GET_EMPLOYEE = gql`
   selector: 'tf-employee-detail',
   standalone: true,
   imports: [
-    RouterLink, MatCardModule, MatButtonModule, MatIconModule,
+    MatCardModule, MatButtonModule, MatIconModule,
     MatChipsModule, MatTabsModule, MatListModule, MatDividerModule,
     MatProgressSpinnerModule, DatePipe, CurrencyPipe,
   ],
@@ -43,7 +44,7 @@ const GET_EMPLOYEE = gql`
       <div class="loading"><mat-spinner></mat-spinner></div>
     } @else if (employee()) {
       <div class="page-header">
-        <button mat-icon-button routerLink="/employees">
+        <button mat-icon-button (click)="goBack()">
           <mat-icon>arrow_back</mat-icon>
         </button>
         <h1>{{ employee()!.firstName }} {{ employee()!.lastName }}</h1>
@@ -217,6 +218,7 @@ export class EmployeeDetailComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private apollo: Apollo,
+    private location: Location,
   ) {}
 
   ngOnInit(): void {
@@ -233,6 +235,12 @@ export class EmployeeDetailComponent implements OnInit {
       },
       error: () => this.loading.set(false),
     });
+  }
+
+  goBack(): void {
+    // Uses browser history so it returns to org chart or employee list
+    // depending on where the user navigated from
+    this.location.back();
   }
 
   navigateTo(id: string): void {
