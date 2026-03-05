@@ -8,7 +8,7 @@ COPY package.json package-lock.json ./
 COPY prisma ./prisma/
 
 # Install all dependencies (including dev for build)
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # Generate Prisma Client
 RUN npx prisma generate
@@ -34,7 +34,7 @@ COPY --from=builder /app/dist/apps/server ./
 COPY --from=builder /app/prisma ./prisma/
 
 # Install production-only dependencies from generated package.json
-RUN npm ci --omit=dev
+RUN npm ci --legacy-peer-deps --omit=dev
 
 # Generate Prisma Client in production image
 RUN npx prisma generate
