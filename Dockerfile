@@ -21,16 +21,23 @@ COPY . .
 ENV NX_DAEMON=false
 RUN npx nx build server --configuration=production
 
+# Patch generated package.json: add graphql (peer dep of @apollo/server, not auto-detected by Nx)
+RUN node -e "const p=require('./dist/apps/server/package.json'); p.dependencies.graphql='16.13.0'; require('fs').writeFileSync('./dist/apps/server/package.json', JSON.stringify(p,null,2));"
+
 # Stage 2: Production
 FROM node:22-alpine
 
 WORKDIR /app
 
-# Copy built output (includes main.js, graphql/typeDefs/*.graphql)
+# Copy built output (includes main.js, graphql/typeDefs/*.graphql, patched package.json)
 COPY --from=builder /app/dist/apps/server ./
 
-# Copy full node_modules from build stage (includes all transitive deps)
-COPY --from=builder /app/node_modules ./node_modules
+# Install production-only dependencies from patched package.json
+RUN npm install --legacy-peer-deps --omit=dev
+
+# Copy generated Prisma Client from build stage (native binaries, skip re-generation)
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
 
 # Cloud Run uses PORT env var (defaults to 8080)
 ENV PORT=8080
