@@ -1,0 +1,16 @@
+node_modules
+dist
+.nx
+.angular
+.git
+.github
+.vscode
+.idea
+coverage
+tmp
+*.md
+.env
+.env.local
+apps/client
+apps/client-e2e
+apps/server-e2e

@@ -3,6 +3,7 @@ import { HttpLink } from 'apollo-angular/http';
 import { InMemoryCache } from '@apollo/client/core';
 import { inject } from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
+import { environment } from '../../environments/environment';
 
 export function provideGraphQL() {
   return [
@@ -10,7 +11,7 @@ export function provideGraphQL() {
     provideApollo(() => {
       const httpLink = inject(HttpLink);
       return {
-        link: httpLink.create({ uri: 'http://localhost:4000/graphql' }),
+        link: httpLink.create({ uri: environment.graphqlUrl }),
         cache: new InMemoryCache({
           typePolicies: {
             Query: {

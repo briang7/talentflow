@@ -7,6 +7,8 @@ import { join } from 'path';
 import { resolvers } from './graphql/resolvers';
 import prisma from './services/prisma.service';
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 // Load all .graphql type definition files
 function loadTypeDefs(): string {
   const typeDefsDir = join(__dirname, 'graphql', 'typeDefs');
@@ -25,6 +27,13 @@ function loadTypeDefs(): string {
     .join('\n');
 }
 
+function getCorsOrigins(): string[] {
+  if (process.env.CORS_ORIGINS) {
+    return process.env.CORS_ORIGINS.split(',').map((o) => o.trim());
+  }
+  return ['http://localhost:4200', 'http://localhost:4000'];
+}
+
 async function startServer() {
   const app = express();
 
@@ -33,12 +42,12 @@ async function startServer() {
   const server = new ApolloServer({
     typeDefs,
     resolvers,
-    introspection: true,
+    introspection: !isProduction,
   });
 
   await server.start();
 
-  app.use(cors({ origin: ['http://localhost:4200', 'http://localhost:4000'], credentials: true }));
+  app.use(cors({ origin: getCorsOrigins(), credentials: true }));
   app.use(express.json());
 
   app.use(
@@ -73,10 +82,22 @@ async function startServer() {
   });
 
   const port = process.env.PORT || 4000;
-  app.listen(port, () => {
-    console.log(`🚀 TalentFlow GraphQL API ready at http://localhost:${port}/graphql`);
-    console.log(`❤️  Health check at http://localhost:${port}/health`);
+  const httpServer = app.listen(port, () => {
+    console.log(`TalentFlow GraphQL API ready on port ${port}`);
+    console.log(`Health check at /health`);
   });
+
+  // Graceful shutdown
+  const shutdown = async (signal: string) => {
+    console.log(`${signal} received, shutting down...`);
+    httpServer.close();
+    await server.stop();
+    await prisma.$disconnect();
+    process.exit(0);
+  };
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
 startServer().catch((err) => {
