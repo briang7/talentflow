@@ -17,10 +17,9 @@ RUN npx prisma generate
 COPY . .
 
 # Build the server with Nx (outputs to dist/apps/server/)
+# Disable Nx daemon - doesn't work in Docker containers
+ENV NX_DAEMON=false
 RUN npx nx build server --configuration=production
-
-# Prune to production package.json
-RUN npx nx run server:prune-lockfile
 
 # Stage 2: Production
 FROM node:22-alpine
@@ -30,11 +29,11 @@ WORKDIR /app
 # Copy built output (includes main.js, graphql/typeDefs/*.graphql, generated package.json)
 COPY --from=builder /app/dist/apps/server ./
 
-# Copy Prisma schema and migrations for runtime
+# Copy Prisma schema for client generation
 COPY --from=builder /app/prisma ./prisma/
 
-# Install production-only dependencies from generated package.json
-RUN npm ci --legacy-peer-deps --omit=dev
+# Install production-only dependencies from Nx-generated package.json
+RUN npm install --legacy-peer-deps --omit=dev
 
 # Generate Prisma Client in production image
 RUN npx prisma generate
