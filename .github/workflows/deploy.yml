@@ -52,10 +52,11 @@ jobs:
           service: ${{ env.CLOUD_RUN_SERVICE }}
           image: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT }}/talentflow/${{ env.CLOUD_RUN_SERVICE }}:${{ github.sha }}
           region: ${{ env.GCP_REGION }}
+          flags: '--allow-unauthenticated'
           env_vars: |
             DATABASE_URL=${{ secrets.DATABASE_URL }}
             NODE_ENV=production
-            CORS_ORIGINS=https://talentflow-hr.web.app,https://talentflow-hr.firebaseapp.com
+            CORS_ORIGINS=https://talentflow-c04b3.web.app,https://talentflow-c04b3.firebaseapp.com
 
       # --- Frontend: Build & Deploy to Firebase ---
 
@@ -68,4 +69,4 @@ jobs:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           channelId: live
-          projectId: talentflow-hr
+          projectId: talentflow-c04b3

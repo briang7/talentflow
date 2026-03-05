@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  graphqlUrl: 'https://talentflow-api-PLACEHOLDER.a.run.app/graphql',
+  graphqlUrl: 'https://talentflow-api-orhwxm5nra-uc.a.run.app/graphql',
 };
