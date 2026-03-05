@@ -26,15 +26,11 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-# Copy built output (includes main.js, graphql/typeDefs/*.graphql, generated package.json)
+# Copy built output (includes main.js, graphql/typeDefs/*.graphql)
 COPY --from=builder /app/dist/apps/server ./
 
-# Install production-only dependencies from Nx-generated package.json
-RUN npm install --legacy-peer-deps --omit=dev
-
-# Copy generated Prisma Client from build stage (avoids needing prisma CLI in production)
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
+# Copy full node_modules from build stage (includes all transitive deps)
+COPY --from=builder /app/node_modules ./node_modules
 
 # Cloud Run uses PORT env var (defaults to 8080)
 ENV PORT=8080
