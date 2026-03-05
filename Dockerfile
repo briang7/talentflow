@@ -29,14 +29,12 @@ WORKDIR /app
 # Copy built output (includes main.js, graphql/typeDefs/*.graphql, generated package.json)
 COPY --from=builder /app/dist/apps/server ./
 
-# Copy Prisma schema for client generation
-COPY --from=builder /app/prisma ./prisma/
-
 # Install production-only dependencies from Nx-generated package.json
 RUN npm install --legacy-peer-deps --omit=dev
 
-# Generate Prisma Client in production image
-RUN npx prisma generate
+# Copy generated Prisma Client from build stage (avoids needing prisma CLI in production)
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
 
 # Cloud Run uses PORT env var (defaults to 8080)
 ENV PORT=8080
